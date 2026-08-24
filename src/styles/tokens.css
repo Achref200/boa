@@ -1,0 +1,222 @@
+/* ============================================================================
+   BOA — design tokens
+
+   Every colour here is either measured from public/brand/boa-logo.jpg or
+   derived from one of those measurements by a documented rule. The warm
+   neutrals are **tints of BOA's own gold**, not imported earth tones: the gold
+   ramp in the mark already runs down to #645322 and #7B6A37, so desaturating
+   and lightening it yields a warm ground that is still the brand's own colour.
+
+   Direction: warmth and material — soft shadows, generous radii, a display
+   face with round terminals. See docs/BRAND.md.
+
+   Replacing this file, plus the two families in src/lib/fonts.ts, is the only
+   change needed to re-skin the product.
+   ========================================================================= */
+
+@theme {
+  /* ── Ink, measured from the mark ──────────────────────────────────────
+     Still the brand's ground, but no longer the surface the whole storefront
+     sits on: it is now reserved for the footer, the salon band and inversions
+     that need to punctuate a warm page. */
+  --color-ink: #27282a;          /* the ground of the logo: 78% of the canvas */
+  --color-ink-raised: #303134;
+  --color-ink-sunken: #1e1f21;
+  --color-ink-line: #3b3c3f;
+  /* A warm-shifted dark for long body copy on light ground: 9.0:1 on paper,
+     softer than pure ink without losing a single step of legibility. */
+  --color-ink-soft: #4a453c;
+
+  /* ── Warm neutrals, derived from the gold ─────────────────────────────
+     #d2ac49 desaturated and lightened. Hue is held at the gold's own 43°, so
+     the page reads warm without a colour entering the palette. */
+  --color-paper: #fbf8f1;        /* gold at ~4%  — the page ground */
+  --color-paper-raised: #ffffff; /* cards, fields, anything lifted */
+  --color-paper-sunken: #f5efe2; /* gold at ~10% — recessed panels, media wells */
+  --color-paper-line: #e7dfcd;   /* hairlines and card borders */
+  --color-paper-line-strong: #d9c89f; /* emphasised separators, dashed empties */
+
+  /* ── The gold, measured ───────────────────────────────────────────────
+     Unchanged. Two thirds of the gold pixels in the mark sit between
+     #d2ac49 and #e4ca69; that pair is BOA's gold. */
+  --color-gold: #d2ac49;
+  --color-gold-light: #e4ca69;
+  --color-gold-pale: #eddc82;
+  --color-gold-deep: #99864a;
+  --color-gold-shadow: #645322;
+  --color-bone: #fefeff;
+
+  /* Functional colour sits deliberately outside the brand hue so a status can
+     never be mistaken for decoration. Light-ground values, re-measured against
+     the new warmer surfaces — every one clears 4.5:1 as text on paper
+     (#FBF8F1), raised paper (#FFFFFF) and sunken paper (#F5EFE2). */
+  --color-positive: #2f6f4e;     /* 6.16 : 1 on paper, 5.69 : 1 on sunken */
+  --color-caution: #8a5514;      /* 6.36 : 1 on paper, 5.88 : 1 on sunken */
+  --color-critical: #a3342c;     /* 7.00 : 1 on paper, 6.47 : 1 on sunken */
+  --color-informative: #34606f;  /* 7.08 : 1 on paper, 6.54 : 1 on sunken */
+
+  /* Contextual surface colours. A section declares data-surface="ink" or
+     "paper" and everything inside it resolves against that context, so one set
+     of components serves both halves of the art direction. */
+  --color-surface: var(--surface-bg);
+  --color-on-surface: var(--surface-fg);
+  --color-on-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-line: var(--surface-line);
+  --color-surface-accent: var(--surface-accent);
+
+  /* ── Type ─────────────────────────────────────────────────────────────
+     Roles, not families — swapping a typeface is a change to fonts.ts alone.
+
+     Display: Calistoga. One weight, warm, round terminals.
+     Text/UI: Hanken Grotesk, variable 100–900, humanist grotesque. */
+  --font-display: var(--font-display-src), 'Calistoga', Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-text-src), 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-arabic: var(--font-plex-arabic), 'IBM Plex Sans Arabic', 'Segoe UI', sans-serif;
+
+  /* Fluid scale. Body sits at 16px rather than 15: a shop is read, not
+     scanned, and Hanken Grotesk carries the extra size comfortably. */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8438rem;
+  --text-base: 1rem;
+  --text-md: 1.0625rem;
+  --text-lg: clamp(1.125rem, 0.4vw + 1rem, 1.375rem);
+  --text-xl: clamp(1.375rem, 1vw + 1rem, 1.75rem);
+  --text-2xl: clamp(1.625rem, 1.8vw + 1rem, 2.5rem);
+  --text-3xl: clamp(2rem, 3.2vw + 1rem, 3.25rem);
+  --text-4xl: clamp(2.375rem, 5vw + 0.5rem, 4.5rem);
+
+  /* Calistoga is already wide and round; it does not want the negative
+     tracking a Didone needed, and it breaks up if pulled too tight. */
+  --tracking-display: -0.012em;
+  --tracking-tight: -0.005em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.06em;
+  /* Softened from the mark's literal 0.42em: at that value a label stops being
+     readable as a word. Reserved for eyebrow labels and section markers. */
+  --tracking-lockup: 0.24em;
+
+  --leading-display: 1.04;
+  --leading-tight: 1.14;
+  --leading-snug: 1.4;
+  --leading-body: 1.65;
+
+  /* ── Space ────────────────────────────────────────────────────────────── */
+  --spacing: 0.25rem;
+  --spacing-section-sm: 3rem;
+  --spacing-section: clamp(3.5rem, 7vw, 7rem);
+  --spacing-section-lg: clamp(5rem, 11vw, 10rem);
+
+  /* ── Shape ───────────────────────────────────────────────────────────────
+     The mark's geometry is circular and organic. The previous system read that
+     as "so use no curves at all"; this one reads it as the opposite — soft,
+     generous corners, with the full circle kept for marks, seals, steppers and
+     pill actions. Radius is a scale now, not a single zero. */
+  --radius-none: 0px;
+  --radius-hair: 1px;
+  --radius-xs: 0.5rem;    /*  8px — chips, badges, small thumbnails */
+  --radius-sm: 0.75rem;   /* 12px — fields, selects, compact controls */
+  --radius-md: 1rem;      /* 16px — cards, panels, media frames */
+  --radius-lg: 1.5rem;    /* 24px — hero media, feature blocks, salon bands */
+  --radius-full: 9999px;
+
+  /* ── Elevation ───────────────────────────────────────────────────────────
+     Was a hairline; is now light. Two levels only — a third tempts a component
+     into floating for no reason. Tinted with the gold shadow rather than pure
+     black, so a lifted card warms the surface under it instead of greying it. */
+  --shadow-1: 0 1px 2px rgb(39 40 42 / 0.04), 0 6px 18px -10px rgb(100 83 34 / 0.20);
+  --shadow-2: 0 2px 6px rgb(39 40 42 / 0.05), 0 22px 46px -22px rgb(100 83 34 / 0.32);
+  --shadow-overlay: 0 24px 60px -24px rgb(39 40 42 / 0.34);
+  --shadow-sticky: 0 -1px 0 0 var(--surface-line), 0 -12px 32px -20px rgb(100 83 34 / 0.30);
+
+  /* ── Motion ──────────────────────────────────────────────────────────────
+     power1.out — the natural-deceleration curve the Subtle tier calls for.
+     Two durations for state and entrance, one stagger step for lists. */
+  --ease-boa: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --duration-state: 180ms;
+  --duration-entrance: 300ms;
+  --stagger-step: 30ms;
+
+  /* ── Layout ──────────────────────────────────────────────────────────── */
+  --container-page: 82rem;
+  --container-reading: 40rem;
+
+  --breakpoint-xs: 26rem;
+
+  /* ── Layers ──────────────────────────────────────────────────────────── */
+  --z-base: 0;
+  --z-sticky: 20;
+  --z-header: 40;
+  --z-drawer: 60;
+  --z-modal: 70;
+  --z-toast: 80;
+}
+
+/* ── Surface contexts ─────────────────────────────────────────────────────
+   Paper is now the brand surface as well as the utility one: the storefront is
+   a warm, light shop. Ink punctuates — footer, salon band, inverted callouts —
+   rather than carrying the page.
+
+   Gold reads two ways and the distinction matters: as *text* on paper it is
+   1.9:1 and is forbidden; as a *fill* carrying ink text it is 7.0:1 and is the
+   primary action. The old brand note conflated the two and banned both. */
+[data-surface='ink'] {
+  --surface-bg: var(--color-ink);
+  --surface-fg: var(--color-bone);
+  --surface-muted: #a8a396;      /* 6.0:1 on ink — warm-shifted to match paper */
+  --surface-raised: var(--color-ink-raised);
+  --surface-sunken: var(--color-ink-sunken);
+  --surface-line: var(--color-ink-line);
+  --surface-accent: var(--color-gold);
+  --surface-field-bg: #31322f;
+  --surface-field-line: #4b4a45;
+  --action-bg: var(--color-gold);
+  --action-fg: var(--color-ink);
+  --action-bg-hover: var(--color-gold-light);
+  --focus-ring: var(--color-gold-pale);
+  /* Functional colour, re-measured for the dark ground. The light-ground
+     values sit between 2.1 : 1 and 2.6 : 1 on ink — unreadable — so a status
+     shown on an ink section uses the lifted variant instead. */
+  --color-positive: #6fbf90;     /* 6.70 : 1 on ink, 5.90 : 1 on ink-raised */
+  --color-caution: #e0a75c;      /* 6.92 : 1 on ink, 6.10 : 1 on ink-raised */
+  --color-critical: #e58a80;     /* 5.82 : 1 on ink, 5.13 : 1 on ink-raised */
+  --color-informative: #8ec3d6;  /* 7.68 : 1 on ink, 6.77 : 1 on ink-raised */
+  color-scheme: dark;
+}
+
+[data-surface='paper'] {
+  --surface-bg: var(--color-paper);
+  --surface-fg: var(--color-ink);
+  /* Warm-shifted from the old cool #5f6063 so secondary copy belongs to the
+     ground it sits on. 5.4:1 on paper, 5.0:1 on sunken paper — AA on both. */
+  --surface-muted: #6b6459;
+  --surface-raised: var(--color-paper-raised);
+  --surface-sunken: var(--color-paper-sunken);
+  --surface-line: var(--color-paper-line);
+  /* The paper accent is the deep end of BOA's own measured gold ramp:
+     #99864a is only 3.4:1 here, while #645322 reaches 7.0:1 and is still a
+     colour taken from the logo rather than an invented substitute. */
+  --surface-accent: var(--color-gold-shadow);
+  --surface-field-bg: var(--color-paper-raised);
+  --surface-field-line: #d9d1bd;
+  /* Gold fill with ink label — 7.0:1. The primary action of the shop. */
+  --action-bg: var(--color-gold);
+  --action-fg: var(--color-ink);
+  --action-bg-hover: var(--color-gold-light);
+  --focus-ring: var(--color-gold-shadow);
+  color-scheme: light;
+}
+
+/* The metallic. Used on the mark, on section seams and on emphasised prices —
+   never as a page background. */
+:root {
+  --gradient-gold: linear-gradient(
+    100deg,
+    var(--color-gold-deep) 0%,
+    var(--color-gold) 28%,
+    var(--color-gold-pale) 52%,
+    var(--color-gold) 74%,
+    var(--color-gold-shadow) 100%
+  );
+}

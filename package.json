@@ -1,0 +1,55 @@
+{
+  "name": "boa-cosmetic",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.11 <23"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build && npm run build:standalone",
+    "start": "node .next/standalone/server.js",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx scripts/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "db:types": "tsx scripts/generate-db-types.ts",
+    "db:reset": "tsx scripts/reset.ts",
+    "build:standalone": "cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
+    "start:dev-server": "next start",
+    "db:media": "tsx scripts/seed-media.ts",
+    "brand:og": "tsx scripts/brand-og.ts",
+    "db:clean": "tsx scripts/clean-test-data.ts"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "kysely": "^0.29.5",
+    "mysql2": "^3.23.4",
+    "next": "^15.5.23",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "dotenv": "^17.4.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.23",
+    "playwright": "^1.62.1",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}
