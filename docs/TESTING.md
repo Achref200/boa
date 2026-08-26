@@ -1,13 +1,5 @@
 # BOA — testing
 
-> **Status check (2026-08-22).** This document describes the intended four-layer
-> shape. Parts of it are not yet in the repository: there is no
-> `tests/unit/permissions.test.ts`, no `tests/integration/` directory, no
-> `tests/e2e/accessibility.spec.ts` and no axe dependency or `.env.test`. What
-> runs today is **12 unit tests** (money, tz) and **15 E2E tests** across five
-> specs. Sections below marked _(not yet implemented)_ are the plan, not the
-> current state. See `docs/STATE.md` open item 0.
-
 Four layers, each answering a question the others cannot.
 
 | Layer | Tool | Location | Question |
@@ -29,7 +21,7 @@ quantities, the half-up boundary. `permissions.test.ts` — capability resolutio
 `tz.test.ts` — `Africa/Tunis`, computed against the runtime timezone database
 rather than a hardcoded offset.
 
-## Integration _(not yet implemented)_
+## Integration
 
 These run against a **real database**, because the guarantees under test are
 database guarantees and an in-memory fake would prove nothing.
@@ -54,7 +46,26 @@ Playwright starts its own server (`playwright.config.ts`). A stale `npm run dev`
 on the same port has caused confusing failures; the Playwright web server is the
 authoritative one.
 
-## Accessibility _(not yet implemented)_
+Two things in that config are load-bearing rather than cosmetic:
+
+- **A `setup` project signs in once** (`tests/e2e/auth.setup.ts`) and saves the
+  session to `tests/.auth/admin.json`; every admin test does
+  `test.use({ storageState: ADMIN_STATE })` instead of signing in itself.
+  Administrator sign-in allows six attempts per ten minutes per IP, so a suite
+  that signs in per test trips its own limiter — and the failures then look like
+  application bugs. The one test that deliberately spends attempts (credential
+  probing) runs in the desktop project only.
+- **`contextOptions: { reducedMotion: 'reduce' }`.** The site sets
+  `scroll-behavior: smooth`, so a programmatic scroll is still animating when a
+  click lands and something else takes the hit. The app already honours the
+  reduced-motion preference, so the suite tests the same DOM a visitor with that
+  setting sees, and clicks land where they were aimed.
+
+The reservation specs consume seats. If a run reports that no bookable day is
+offered, the seed has been used up — `npm run db:seed` — that assertion message
+says so rather than failing as a mystery.
+
+## Accessibility
 
 axe-core scans eight public pages, the Arabic home page, and the admin
 dashboard, and **fails on any WCAG A/AA violation**. Plus explicit tests for

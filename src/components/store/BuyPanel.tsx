@@ -102,7 +102,9 @@ export function BuyPanel({
                   <label
                     key={variant.id}
                     className={cn(
-                      'flex min-h-14 cursor-pointer flex-col justify-center rounded-sm border px-4 py-2 transition-colors',
+                      /* `relative` anchors the visually-hidden radio to its own
+                         label — see BookingCalendar for what happens without it. */
+                      'relative flex min-h-14 cursor-pointer flex-col justify-center border px-4 py-2 transition-colors',
                       checked
                         ? 'border-[var(--surface-fg)] bg-[var(--surface-fg)] text-[var(--surface-bg)]'
                         : 'border-[var(--surface-line)] hover:border-[var(--surface-fg)]',
@@ -119,7 +121,7 @@ export function BuyPanel({
                       className="visually-hidden"
                     />
                     <span className="text-sm">{variant.format}</span>
-                    <span className="text-xs tabular-nums opacity-75">
+                    <span className="text-xs tabular-nums">
                       {formatMoney(variant.price, locale)}
                     </span>
                   </label>

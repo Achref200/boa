@@ -1,15 +1,7 @@
-import path from 'node:path';
 import { test } from '@playwright/test';
-import { clearAdminLockout } from './support/admin-lockout';
+import { ADMIN_STATE } from './admin-session';
 
-test.beforeAll(clearAdminLockout);
-
-const EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@boacosmetic.tn';
-const PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'boa-dev-password-2026';
-/* Repo-relative, and `screenshots/` is git-ignored. The previous absolute
-   `/root/boa/screenshots` only existed on one Linux machine; on Windows it
-   silently resolved to `C:\root\…`, outside the project. */
-const OUT = path.join(process.cwd(), 'screenshots');
+const OUT = process.env.SCREENSHOT_DIR ?? 'screenshots';
 
 /** Visual capture pass. Run with: npx playwright test screenshots */
 test('capture storefront', async ({ page }) => {
@@ -57,15 +49,19 @@ test('capture cart and checkout', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/13-checkout.png`, fullPage: true });
 });
 
-test('capture admin', async ({ page }) => {
-  test.setTimeout(180_000);
+test('capture the admin sign-in screen', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/admin/connexion', { waitUntil: 'load' });
   await page.screenshot({ path: `${OUT}/14-admin-signin.png` });
-  await page.fill('#email', EMAIL);
-  await page.fill('#password', PASSWORD);
-  await page.getByRole('button', { name: /se connecter/i }).click();
-  await page.waitForURL(/\/admin$/, { timeout: 30_000 });
+});
+
+test.describe('signed in', () => {
+  test.use({ storageState: ADMIN_STATE });
+
+  test('capture admin', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/admin', { waitUntil: 'load' });
   await page.waitForTimeout(800);
 
   for (const [name, url] of [
@@ -85,4 +81,5 @@ test('capture admin', async ({ page }) => {
   await page.getByRole('link', { name: 'BOA Shampoo' }).first().click();
   await page.waitForTimeout(900);
   await page.screenshot({ path: `${OUT}/21-admin-product-edit.png`, fullPage: true });
+  });
 });

@@ -78,7 +78,7 @@ export function BookingCalendar({
 
   if (days.length === 0) {
     return (
-      <p role="status" className="rounded-md border border-[var(--surface-line)] px-6 py-16 text-center text-sm text-[var(--surface-muted)]">
+      <p role="status" className="border border-[var(--surface-line)] px-6 py-16 text-center text-sm text-[var(--surface-muted)]">
         {labels.noSlots}
       </p>
     );
@@ -135,7 +135,7 @@ export function BookingCalendar({
           id="booking-error"
           role="alert"
           tabIndex={-1}
-          className="flex items-start gap-3 rounded-md border border-[var(--color-critical)] px-4 py-3 text-sm"
+          className="flex items-start gap-3 border border-[var(--color-critical)] px-4 py-3 text-sm"
         >
           <IconAlert width={16} height={16} className="mt-0.5 shrink-0 text-[var(--color-critical)]" />
           <span>{formError}</span>
@@ -160,14 +160,14 @@ export function BookingCalendar({
                   setSlotId('');
                 }}
                 className={cn(
-                  'flex min-h-16 w-20 shrink-0 snap-start flex-col items-center justify-center gap-0.5 rounded-sm border px-2 transition-colors',
+                  'flex min-h-16 w-20 shrink-0 snap-start flex-col items-center justify-center gap-0.5 border px-2 transition-colors',
                   selected
                     ? 'border-[var(--surface-fg)] bg-[var(--surface-fg)] text-[var(--surface-bg)]'
                     : 'border-[var(--surface-line)] hover:border-[var(--surface-fg)]',
                   !free && 'cursor-not-allowed opacity-35 hover:border-[var(--surface-line)]',
                 )}
               >
-                <span className="text-[10px] uppercase tracking-[0.12em] opacity-70">
+                <span className="text-[10px] uppercase tracking-[0.12em]">
                   {entry.weekdayLabel}
                 </span>
                 <span className="text-sm tabular-nums">{entry.dayLabel}</span>
@@ -188,7 +188,12 @@ export function BookingCalendar({
                 <label
                   key={slot.id}
                   className={cn(
-                    'flex min-h-14 cursor-pointer flex-col justify-center rounded-sm border px-4 py-2 transition-colors',
+                    /* `relative` keeps the visually-hidden radio anchored to
+                       its own label. Without it the input is positioned at the
+                       top of the document, and focusing it scrolls the page
+                       there — on a phone that pulls the form out from under
+                       the visitor mid-booking. */
+                    'relative flex min-h-14 cursor-pointer flex-col justify-center border px-4 py-2 transition-colors',
                     selected
                       ? 'border-[var(--surface-fg)] bg-[var(--surface-fg)] text-[var(--surface-bg)]'
                       : 'border-[var(--surface-line)] hover:border-[var(--surface-fg)]',
@@ -205,7 +210,7 @@ export function BookingCalendar({
                     className="visually-hidden"
                   />
                   <span className="text-sm tabular-nums">{slot.time}</span>
-                  <span className="text-[11px] opacity-70">
+                  <span className="text-[11px]">
                     {full ? labels.full : labels.slotsLeft.replace('{count}', String(slot.remaining))}
                   </span>
                 </label>

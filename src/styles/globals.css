@@ -13,28 +13,7 @@
   *::before,
   *::after {
     box-sizing: border-box;
-  }
-
-  /* Shape defaults.
-     This used to be a blanket `border-radius: 0` on every element — one line
-     that enforced the whole square-cornered system. It is now a short list of
-     defaults per element kind, so a component gets the right corner without
-     declaring one, and `rounded-*` utilities still override freely. */
-  input:not([type='checkbox']):not([type='radio']),
-  select,
-  textarea {
-    border-radius: var(--radius-sm);
-  }
-
-  img,
-  video,
-  canvas {
-    border-radius: inherit;
-  }
-
-  fieldset,
-  dialog {
-    border-radius: var(--radius-md);
+    border-radius: 0;
   }
 
   html {
@@ -57,15 +36,15 @@
   }
 
   /* Arabic gets its own family across the whole tree, including display type:
-     Calistoga has no Arabic, and faking one would be worse than
+     there is no honest Didone for Arabic, and faking one would be worse than
      using a well-drawn family well. */
   :lang(ar) body,
   [dir='rtl'] body {
     font-family: var(--font-arabic);
   }
 
-  /* Arabic needs vertical room that a tight display line-height does not
-     leave: a sub-1.1 value clips the diacritics and the descenders of ج/ح/ع. */
+  /* Arabic needs vertical room that a Didone display line-height does not
+     leave: 0.94 clips the diacritics and the descenders of ج/ح/ع outright. */
   :lang(ar) .font-display,
   [dir='rtl'] .font-display {
     font-family: var(--font-arabic);
@@ -133,16 +112,16 @@
     font-size: var(--text-xs);
   }
 
-  /* Display type: Calistoga is a single-weight face with round terminals and a
-     tall x-height. It needs no optical-size axis and very little tracking —
-     pulled tight it loses the openness that makes it warm. */
+  /* Display type: Bodoni's hairlines need the optical-size axis to survive at
+     small sizes, and negative tracking to hold together at large ones. */
   .font-display {
     font-family: var(--font-display);
-    font-weight: 400;
+    font-variation-settings: 'opsz' 96;
     letter-spacing: var(--tracking-display);
     line-height: var(--leading-display);
-    /* Kerning and ligatures must be explicit: `font-synthesis-weight: none` on
-       body switches off some browser defaults. */
+    /* Bodoni's default spacing opens up badly around round-then-diagonal pairs
+       such as "OA"; kerning and standard ligatures must be explicit because
+       `font-synthesis-weight: none` on body switches off some defaults. */
     font-kerning: normal;
     font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
   }
@@ -196,97 +175,9 @@
   .media-pending {
     display: grid;
     place-items: center;
-    position: relative;
-    background-color: var(--surface-sunken);
-    background-image:
-      repeating-linear-gradient(
-        -45deg,
-        color-mix(in srgb, var(--surface-accent) 7%, transparent) 0 1px,
-        transparent 1px 11px
-      );
+    background: var(--surface-sunken);
     color: var(--surface-muted);
     border: 1px solid var(--surface-line);
-    border-radius: var(--radius-md);
-  }
-
-  /* Corner brackets, so a reserved plate reads as a registration frame rather
-     than a broken image. Built from existing tokens only. */
-  .media-pending::before,
-  .media-pending::after {
-    content: '';
-    position: absolute;
-    inline-size: 14px;
-    block-size: 14px;
-    border: 1px solid color-mix(in srgb, var(--surface-accent) 42%, transparent);
-    pointer-events: none;
-  }
-
-  .media-pending::before {
-    inset-block-start: 10px;
-    inset-inline-start: 10px;
-    border-inline-end: 0;
-    border-block-end: 0;
-  }
-
-  .media-pending::after {
-    inset-block-end: 10px;
-    inset-inline-end: 10px;
-    border-inline-start: 0;
-    border-block-start: 0;
-  }
-
-  /* Catalogue plate.
-
-     A partially filled row in a 3-up grid used to leave a wide void that read
-     as a layout bug. Hairline separators drawn per cell turn the grid into a
-     ruled plate — a short row now reads as a page with room left on it, the
-     way a printed catalogue does, rather than as missing content. The rules sit
-     on the inline-start edge and are suppressed on the first column of each row
-     via the nth-child rules the grid width implies. */
-  .catalogue-grid > li {
-    position: relative;
-  }
-
-  .catalogue-grid > li::before {
-    content: '';
-    position: absolute;
-    inset-block: -0.5rem;
-    inset-inline-start: -0.75rem;
-    inline-size: 1px;
-    background: var(--surface-line);
-    opacity: 0.55;
-    pointer-events: none;
-  }
-
-  .catalogue-grid > li:nth-child(2n + 1)::before { content: none; }
-
-  @media (width >= 64rem) {
-    .catalogue-grid > li::before { inset-inline-start: -1rem; }
-    .catalogue-grid > li:nth-child(2n + 1)::before { content: ''; }
-    .catalogue-grid > li:nth-child(3n + 1)::before { content: none; }
-  }
-
-  /* Product name underline. The catalogue deliberately has no card chrome, so
-     the hover affordance is a rule drawn in the brand metal under the name —
-     the gesture a printed index uses, not a UI hover state. It animates from
-     the inline-start edge, which flips correctly under RTL. */
-  .name-rule {
-    background-image: linear-gradient(var(--surface-accent), var(--surface-accent));
-    background-repeat: no-repeat;
-    background-position: 0 100%;
-    background-size: 0% 1px;
-    transition: background-size var(--duration-state) var(--ease-boa);
-  }
-
-  [dir='rtl'] .name-rule { background-position: 100% 100%; }
-
-  .group:hover .name-rule,
-  .group:focus-within .name-rule {
-    background-size: 100% 1px;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .name-rule { transition: none; }
   }
 
   .skeleton {
@@ -306,6 +197,11 @@
 }
 
 @layer utilities {
+  /* Absolutely positioned, so it resolves against the nearest positioned
+     ancestor. A *focusable* element carrying this class must therefore sit
+     inside a `relative` parent: otherwise it is laid out at the top of the
+     document, and focusing it scrolls the page there — which on a long form
+     means the control the visitor was aiming at jumps out from under them. */
   .visually-hidden {
     position: absolute;
     inline-size: 1px;

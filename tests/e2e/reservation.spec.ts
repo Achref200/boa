@@ -16,7 +16,12 @@ test.describe('reservation journey', () => {
 
     await expect(page.getByRole('heading', { name: /diagnostic cheveux/i })).toBeVisible();
 
-    await page.getByRole('tab').first().click();
+    /* The first day tab is disabled once its slots are gone, so the test picks
+       the first day that still has one. If none does, the seed has been used
+       up — re-run `npm run db:seed` rather than reading this as a bug. */
+    const openDay = page.locator('[role="tab"]:not([disabled])').first();
+    await expect(openDay, 'no bookable day is offered — re-seed the database').toBeVisible();
+    await openDay.click();
     await page.locator('input[name="slotId"]:not([disabled])').first().check({ force: true });
 
     await page.fill('#firstName', 'Sonia');
@@ -37,7 +42,9 @@ test.describe('reservation journey', () => {
     // Both land on the booking page and select the same first free slot.
     for (const page of pages) {
       await page.goto('/fr/reserver/diagnostic-cheveux');
-      await page.getByRole('tab').first().click();
+      const openDay = page.locator('[role="tab"]:not([disabled])').first();
+      await expect(openDay, 'no bookable day is offered — re-seed the database').toBeVisible();
+      await openDay.click();
     }
 
     const slotValue = await pages[0]!

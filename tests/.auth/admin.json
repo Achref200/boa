@@ -1,0 +1,25 @@
+{
+  "cookies": [
+    {
+      "name": "boa_admin_session",
+      "value": "k9ceT7lSYgg95bz3SWNMXclROp6qd6Lj4aSjjmKm8XE",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1787780872.933437,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "__next_hmr_refresh_hash__",
+      "value": "39b21c34b5aa150d0019b04f647d63579dd8507c220ab8a0",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

@@ -1,10 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { clearAdminLockout } from './support/admin-lockout';
-
-test.beforeAll(clearAdminLockout);
-
-const EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@boacosmetic.tn';
-const PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'boa-dev-password-2026';
+import { ADMIN_STATE } from './admin-session';
 
 const PUBLIC_ROUTES = [
   '/fr', '/en', '/ar',
@@ -26,7 +21,12 @@ const ADMIN_ROUTES = [
   '/admin/contenu', '/admin/messages', '/admin/reglages', '/admin/journal',
 ];
 
-
+/**
+ * A cheap net that catches the failure mode nothing else does: a page that
+ * compiles, type-checks and then throws the first time it is actually rendered.
+ * Every route is asserted on both its HTTP status and the absence of a runtime
+ * error boundary.
+ */
 test.describe('every route renders', () => {
   test.setTimeout(120_000);
 
@@ -40,6 +40,8 @@ test.describe('every route renders', () => {
         failures.push(`${route} → HTTP ${status}`);
         continue;
       }
+      // XML and plain-text routes have no HTML body to inspect; their status
+      // code is the whole assertion.
       const type = response?.headers()['content-type'] ?? '';
       if (!type.includes('text/html')) continue;
 
@@ -52,28 +54,26 @@ test.describe('every route renders', () => {
     expect(failures, failures.join('\n')).toEqual([]);
   });
 
-  test('admin routes', async ({ page }) => {
-    await page.goto('/admin/connexion');
-    await page.fill('#email', EMAIL);
-    await page.fill('#password', PASSWORD);
-    await page.getByRole('button', { name: /se connecter/i }).click();
-    await page.waitForURL(/\/admin$/, { timeout: 20_000 });
+  test.describe('signed in', () => {
+    test.use({ storageState: ADMIN_STATE });
 
-    const failures: string[] = [];
+    test('admin routes', async ({ page }) => {
+      const failures: string[] = [];
 
-    for (const route of ADMIN_ROUTES) {
-      const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
-      const status = response?.status() ?? 0;
-      if (status >= 400) {
-        failures.push(`${route} → HTTP ${status}`);
-        continue;
+      for (const route of ADMIN_ROUTES) {
+        const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
+        const status = response?.status() ?? 0;
+        if (status >= 400) {
+          failures.push(`${route} → HTTP ${status}`);
+          continue;
+        }
+        const body = await page.locator('body').innerText();
+        if (/Une erreur est survenue|Application error/i.test(body)) {
+          failures.push(`${route} → error boundary`);
+        }
       }
-      const body = await page.locator('body').innerText();
-      if (/Une erreur est survenue|Application error/i.test(body)) {
-        failures.push(`${route} → error boundary`);
-      }
-    }
 
-    expect(failures, failures.join('\n')).toEqual([]);
+      expect(failures, failures.join('\n')).toEqual([]);
+    });
   });
 });
