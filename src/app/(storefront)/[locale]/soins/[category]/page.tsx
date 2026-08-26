@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { isLocale } from '@/i18n/config';
 import { getTranslator } from '@/i18n/translate';
 import { getCategory, categoryBranchSlugs, getPublishedCategorySlugs } from '@/modules/catalog/categories';
+import { MediaFrame } from '@/components/ui/MediaFrame';
 import {
   CatalogueView,
   parseCatalogueParams,
@@ -96,6 +97,27 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {/* The category's own visual, when BOA has supplied one. Rendered
+            conditionally rather than as a reserved frame: a category is a
+            navigational page, and an empty placeholder band above the grid would
+            push the products below the fold for no gain. 3:1 at every breakpoint
+            so the masthead never crops — `scripts/seed-media.ts` draws the
+            category reserve at exactly this ratio. */}
+        {category.imagePath ? (
+          <div className="container-page mt-8">
+            <MediaFrame
+              path={category.imagePath}
+              alt=""
+              ratio="3 / 1"
+              sizes="(max-width: 1280px) 92vw, 1200px"
+              priority
+              pendingLabel={t('product.imagePending')}
+              expected="1800 × 600"
+              className="rounded-md"
+            />
+          </div>
         ) : null}
       </nav>
 

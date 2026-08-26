@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { test } from '@playwright/test';
 import { clearAdminLockout } from './support/admin-lockout';
 
@@ -5,7 +6,10 @@ test.beforeAll(clearAdminLockout);
 
 const EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@boacosmetic.tn';
 const PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? 'boa-dev-password-2026';
-const OUT = '/root/boa/screenshots';
+/* Repo-relative, and `screenshots/` is git-ignored. The previous absolute
+   `/root/boa/screenshots` only existed on one Linux machine; on Windows it
+   silently resolved to `C:\root\…`, outside the project. */
+const OUT = path.join(process.cwd(), 'screenshots');
 
 /** Visual capture pass. Run with: npx playwright test screenshots */
 test('capture storefront', async ({ page }) => {

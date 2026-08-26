@@ -65,7 +65,8 @@ home / catalogue / product / admin sign-in / `ar` RTL checked in a browser.
 workspace behind login.
 
 A pre-change copy of `src/` and `docs/` is at
-`../boa-backup-2026-08-23/` — this project is not under git.
+`../boa-backup-2026-08-23/`. (This line said "this project is not under git";
+it was `git init`ed on 2026-08-25 and now has one commit, `f3b71d9 first commit`.)
 
 ## Media reserves and new test coverage — 2026-08-24
 
@@ -141,6 +142,263 @@ workspace root and emits the server at
 the copy without its `_next/static` assets produces a page with no JavaScript,
 where forms fall back to a native GET submit and put the password in the URL.
 Setting `outputFileTracingRoot` in `next.config.ts` fixes the whole chain.
+
+## Imagery verification pass — 2026-08-25
+
+A sweep of every image placement on the public site, ahead of the first client
+presentation. Four defects found, all fixed; `typecheck`, `lint` and the 12 unit
+tests are green, and the new media suite is 12/12.
+
+### Defect: images could render at zero height, silently
+
+`MediaFrame` supplies its own `relative`, and `src/lib/cn.ts` is a plain
+class-name joiner with no Tailwind conflict resolution. A caller that passed its
+own position therefore emitted `relative absolute` — and because Tailwind v4
+orders `.relative` after `.absolute`, the frame kept `position: relative`,
+`inset-0` did nothing, the box collapsed to **760×0**, and the image disappeared.
+
+Nothing threw. The request returned 200, the `<img>` was in the DOM, the file
+decoded correctly, and every structural assertion in the existing suite passed.
+The visible symptom was that **the whole "Formulé à Sousse" ink band on the home
+page rendered as an empty black rectangle** — the single most prominent brand
+moment on the page, in that state since the 2026-08-23 re-skin.
+
+`MediaFrame` now supplies `relative` only when the caller has not chosen a
+position of its own, so no call site can reintroduce it.
+
+### Two image placements existed in the database but were never rendered
+
+`categories.image_path` (6 rows) and `rituals.cover_path` (1 row) were written by
+`npm run db:media` and read by nothing. Both are now rendered:
+
+- **category masthead** — `soins/[category]`, 3:1, above the grid;
+- **ritual cover band** — `rituels/[slug]`, 5:2, under the header.
+
+Both are conditional, not reserved frames: a category is a navigational page and
+an empty placeholder band would push the products below the fold for nothing.
+`CategoryView` gained `imagePath`; `RitualView.coverPath` was already fetched.
+
+### Reserves are now drawn at the ratio they are displayed at
+
+A reserve exists to say *"this is a reserve, replace it"*, and `object-cover`
+crops that line out of any plate whose ratio does not match its frame. The single
+1800×1200 cover plate, shown in a 3:1 masthead, lost its
+`BOA COSMETIC · RÉSERVE, À REMPLACER` footer and read as a broken image.
+`scripts/seed-media.ts` now draws each cover at its display ratio — categories
+1800×600, rituals 1800×720, services and collections unchanged at 1800×1200.
+
+### `screenshots.spec.ts` wrote outside the project
+
+`OUT` was the absolute `/root/boa/screenshots`, which existed on one Linux
+machine and silently resolved to `C:\root\…` on Windows. It is now
+`path.join(process.cwd(), 'screenshots')`, which `.gitignore` already covers.
+
+### Test added: `tests/e2e/media.spec.ts`
+
+Eleven routes plus a reachability pass, asserting **geometrically** rather than
+structurally: a visible `<img>` must have a real box and a non-zero intrinsic
+size. Images inside a `display:none` subtree are excluded, because the product
+gallery deliberately renders the mobile swipe rail and the zoom dialog off-screen
+at desktop widths, and each page is scrolled end to end first so that a
+`loading="lazy"` footer mark is not read as broken.
+
+**The suite was verified against the bug**: with the `MediaFrame` fix reverted,
+`imagery renders on /fr` fails and names `content/88f6…png` — the maison band —
+as collapsed. With the fix in place it passes, **24/24 across the desktop and
+mobile projects**, against a single dev server on a clean `.next/cache`.
+
+### Two traps this pass ran into, worth knowing
+
+1. **`unstable_cache` survives a dev-server restart.** After `db:media` redrew
+   the category plates, the page kept serving the *old* path from
+   `.next/cache`, and `next/image` still had the old optimised copy — so the
+   masthead showed a 1800×1200 plate that no longer existed on disk. `rm -rf
+   .next/cache` before judging any change to seeded media.
+2. **A dev server that fails to bind does not fail.** `next dev` prints
+   `Port 3000 is in use … using available port 3001 instead` and carries on, so
+   a stale server keeps answering on 3000 while the edited code runs on 3001.
+   Every "my change did nothing" moment in this pass was that.
+3. **Two dev servers share one `.next`, and corrupt it.** Following on from (2),
+   the second server writes the same webpack cache as the first. The symptom is
+   `[webpack.cache.PackFileCacheStrategy] Caching failed … ENOENT … 3.pack.gz`,
+   a `Fast Refresh had to perform a full reload`, and **transient 500s on pages
+   that are fine seconds later** — `media.spec.ts` failed twice on
+   `expect(status).toBe(200)` for exactly this reason, and passed 24/24 once a
+   single server owned the directory. Never `rm -rf .next/cache` while a server
+   is running either; stop everything first, then wipe, then start one server.
+   `Get-NetTCPConnection -LocalPort 3000,3001,3002 -State Listen` shows the
+   stragglers.
+
+### Still open after this pass
+
+- **No admin UI uploads a cover.** Only `product_media` has an upload manager.
+  `categories.image_path`, `rituals.cover_path`, `services.cover_path` and
+  `content_blocks.media_path` can be set **only** by `npm run db:media`. Every
+  one of those placements now renders, so this is the gap that matters most for
+  handing the site over: BOA cannot replace those four kinds of image without a
+  developer. See `CONTENT-CHECKLIST.md`.
+- 3 of 8 products are `DRAFT` (`boa-gommage`, `boa-savon-noir`,
+  `boa-body-splash`), so the shop presents 5. Intentional or not, it is a
+  content decision to confirm before the presentation.
+- `collections` has 0 rows, so no collection surface renders at all.
+- The soft 404 below is unchanged.
+
+## Imagery weight and delivery pass — 2026-08-25
+
+The previous pass made every placement *render*. This one makes the delivery
+cheap. No new placement was added and no component moved — the changes are the
+encoding, the cache policy and what gets fetched when.
+
+### Reserves are WebP, not PNG
+
+`scripts/seed-media.ts` wrote PNG. These plates are flat vector art at up to
+2400×1600, where PNG costs ~62% more bytes for a pixel-identical result, and
+`next/image` re-reads the source on every cold optimise. Switching `writePlate`
+to `webp({ quality: 82 })` took `public/uploads/` from **4.2 MB → 1.6 MB** across
+34 files. WebP was already in `storage.ts`'s allowed upload types, so a reserve
+is still indistinguishable from a real upload.
+
+The 35 orphaned PNGs were deleted after confirming **zero** rows in
+`product_media`, `categories`, `rituals`, `services` or `content_blocks` still
+referenced a `.png`.
+
+### `/uploads/*` is now cached immutably
+
+Filenames are a sha256 of the bytes, so a URL cannot change meaning — replacing
+a photograph produces a new path. Next sends long-lived caching for
+`_next/static` and `_next/image` but **nothing at all** for the raw files it
+serves out of `public/`, so every returning visitor refetched the whole
+catalogue. `next.config.ts` grew a `headers()` entry setting
+`public, max-age=31536000, immutable`, plus `minimumCacheTTL` so the optimiser
+stops re-encoding on its 60-second default.
+
+Verified against the running server: the raw file returns the immutable header,
+and `_next/image` with an AVIF `Accept` serves **4 KB** for a catalogue card that
+is 40 KB at source.
+
+### `deviceSizes` / `imageSizes` trimmed to the layouts that exist
+
+Next's defaults span 16px→3840px and it generates every candidate a `sizes`
+string can reach. The widest real box is the 1440px maison band. The lists are
+now bounded by what the site actually renders — and `imageSizes` deliberately
+includes **56, 64, 80 and 96**, because dropping a width a fixed-px `sizes`
+names makes Next round *up* and ship a larger thumbnail than the slot.
+
+### Product gallery stopped double-loading the LCP image
+
+Two real defects, both invisible because the page looked correct:
+
+1. **The zoom dialog always mounted its `100vw` image.** A closed `<dialog>`
+   still renders its children, so every product page paid for a full-viewport
+   decode that most visitors never open. It is now mounted only while `zoomed`.
+2. **The mobile rail carried `priority` on image 0 and a flat `sizes="100vw"`.**
+   Both rails are in the DOM at every width — only CSS hides one — so desktop
+   preloaded the LCP file twice and picked the widest candidate for a rail it
+   never shows. The rail now uses `loading="eager"` on the first image only and
+   `sizes="(min-width: 1024px) 1px, 100vw"`.
+
+### `MediaFrame` fades in instead of popping
+
+Every non-`priority` image is now explicitly `loading="lazy"` and fades up from a
+50-byte inlined 1×1 WebP of `--color-paper-sunken` (#f5efe2) — the media well's
+own ground. Encoding a real per-asset thumbnail cannot work here: media is
+uploaded at runtime and the path is all the database stores. This costs no
+request, never goes stale when a photograph is replaced, and leaves no seam if
+an image fails to load.
+
+### Defect fixed: WebP and AVIF uploads stored NULL dimensions
+
+`storage.ts` accepts `image/webp` and `image/avif`, but `readImageSize` parsed
+only PNG and JPEG and fell through to `null` — so `product_media.width/height`
+were NULL for exactly the formats a modern phone or export pipeline produces,
+which is what `next/image` needs to reserve layout. It now parses the WebP RIFF
+container (all three of `VP8X`, `VP8L`, `VP8 `) and the AVIF `ispe` box.
+Verified against sharp-encoded fixtures at 1234×567: **6/6 formats** return the
+exact intrinsic size.
+
+### Pre-existing: `npm run build` does not produce a standalone server
+
+`next build` exits **0** while printing `PageNotFoundError: Cannot find module
+for page: /admin` and `Failed to collect page data`, and `.next/standalone/` is
+never created — so `build:standalone` copies into nothing and `npm run e2e`,
+whose `webServer` runs `.next/standalone/server.js`, hangs waiting for a server
+that cannot boot.
+
+**This is not caused by the changes above.** It was confirmed by stashing every
+edit in this pass and rebuilding from a clean tree: the baseline fails
+identically. The exit code being 0 is what hides it. This blocks production
+deploy and the e2e suite, and should be the next thing fixed.
+
+The imagery work here was therefore verified against `next dev` on port 3007
+plus `E2E_BASE_URL`, not against a standalone build.
+
+## Product imagery — 2026-08-26
+
+The catalogue now shows **product renders instead of "asset missing" plates.**
+
+The previous reserves were correct by the letter of the no-invented-content rule
+and useless in front of a client: a grid of documents reading
+`BOA COSMETIC · RÉSERVE, À REMPLACER` looks like a broken site, not a shop.
+
+`scripts/media/vessels.ts` draws seven vessel types — bottle, pump, jar, tube,
+flacon, sachet, bar — from primitives, on the brand grounds, in the brand
+palette, with glass shading and a contact shadow. Each product's vessel is
+**stated explicitly** in `VESSEL_BY_SLUG`, not guessed at runtime, with a
+category/name fallback for products added later.
+
+Three views per product, so the gallery rail, the dot pagination and the zoom
+all have something real to show: `front` (the vessel), `detail` (a texture
+field) and `packaging` (a carton). The wide editorial bands get an abstract
+composition from `editorial()` rather than a stretched product.
+
+### What these are, precisely
+
+Generated renders. **Not photographs, not stock, not traced from any real
+product.** They make no claim: the label prints the product name the database
+already holds, the category, and the real `product_variants.format` — and the
+volume appears *only* when a variant actually declares one. No ingredient,
+certification or origin is invented. `docs/ASSUMPTIONS.md` carries the full
+statement.
+
+They are still placeholders. They land in `public/uploads/products/` with the
+same content-hashed naming as a real upload, so replacing one is a single
+upload in `/admin` with no code change.
+
+### Two drawing bugs found by looking at the render
+
+Both were caught by rendering a contact sheet before touching the database,
+which is the cheap way to do this:
+
+1. **The tube was upside down.** It was drawn with the crimped seam at the foot
+   and the cap on top, so the seam sat under the label and read as a bottle with
+   a broken base. A tube stands *on its cap*.
+2. **The packaging carton was a stamp in the corner.** Drawn at 420×560 inside a
+   1000-wide box. Also, `d` (the receding side) means the visual centre is
+   `x + (w + d)/2`, not `x + w/2`.
+
+### Weight
+
+`public/uploads/` is **824 KB** across 34 files — down from 4.2 MB of PNG
+reserves before the 2026-08-25 pass. A catalogue card is 14 KB at source and
+**2 KB served** as AVIF. The immutable `/uploads/*` cache header and the trimmed
+`deviceSizes`/`imageSizes` from the previous pass are unchanged and verified
+still working against the running server.
+
+Orphan cleanup is a real step here: `--force` rewrites every path, so the old
+files stop being referenced. Both regenerations in this pass were followed by a
+sweep that deletes any file under `public/uploads/` not referenced by
+`product_media`, `categories`, `rituals`, `services`, `collections` or
+`content_blocks`.
+
+### Verified
+
+`typecheck`, `lint`, 12/12 unit, and the home / catalogue / product pages
+captured and inspected at 1280px. The pre-existing standalone build failure
+(below) still blocks `npm run build`, so this was verified against `next dev`
+with `E2E_BASE_URL`, not a production build.
+
+**`npm run db:media -- --force` overwrites real uploads.** Once BOA supplies
+photography, use the no-flag form, which only fills empty slots.
 
 ## Open items
 

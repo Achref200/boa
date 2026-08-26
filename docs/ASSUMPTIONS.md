@@ -38,7 +38,25 @@ on the admin dashboard under "Contenu à compléter".
   omits any section with no content rather than filling it. No ingredient list,
   no benefit claim and no medical statement has been written by us.
 - **Product photography.** No BOA product image was available. Every image slot
-  renders the "asset expected" state with the required ratio and pixel size.
+  is filled by a **generated studio render** from `scripts/media/vessels.ts` —
+  a vessel silhouette (bottle, pump, jar, tube, flacon, sachet, bar) drawn from
+  primitives in that file, on the brand grounds, in the brand palette. The wide
+  editorial bands get an abstract composition rather than a product.
+
+  These are **not photographs, not stock imagery, and not traced from any real
+  product** — BOA's or anyone else's. They exist so the catalogue can be shown
+  as a working shop instead of a grid of "asset missing" plates.
+
+  They make **no claim**: the label prints only the product name the database
+  already holds, plus the category and — when and only when a variant actually
+  declares one — the real `product_variants.format`. No ingredient, volume,
+  certification or origin is invented.
+
+  **They are still placeholders and must be replaced before launch.** They are
+  written to `public/uploads/products/` with the same content-hashed naming as
+  a real upload, so the swap is one upload per product in `/admin` with no code
+  change. The vessel chosen per product is stated explicitly in
+  `VESSEL_BY_SLUG` in `scripts/seed-media.ts`.
 - **Services and their prices/durations.** Structure is real; the three seeded
   services are labelled placeholders.
 - **Company details**: address, phone, email, opening hours, delivery zones and

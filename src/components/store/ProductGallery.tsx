@@ -134,8 +134,13 @@ export function ProductGallery({
                 src={mediaUrl(item.path) ?? ''}
                 alt={item.alt ?? `${productName} ${index + 1}`}
                 fill
-                priority={index === 0}
-                sizes="100vw"
+                /* The desktop frame above already declares the same file with
+                   `priority`. Both rails are in the DOM at every width — only
+                   CSS hides one — so repeating `priority` here preloads the LCP
+                   image twice, and a flat `100vw` makes desktop pick the widest
+                   candidate for a rail it will never show. */
+                loading={index === 0 ? 'eager' : 'lazy'}
+                sizes="(min-width: 1024px) 1px, 100vw"
                 className="object-cover"
               />
             </div>
@@ -173,15 +178,20 @@ export function ProductGallery({
           >
             <IconClose />
           </button>
-          <div className="relative h-full w-full">
-            <Image
-              src={mediaUrl(current.path) ?? ''}
-              alt={current.alt ?? productName}
-              fill
-              sizes="100vw"
-              className="object-contain"
-            />
-          </div>
+          {/* Mounted only while open. This is the one full-viewport decode in
+              the gallery, and a closed dialog that still holds it makes every
+              product page pay for a zoom most visitors never open. */}
+          {zoomed ? (
+            <div className="relative h-full w-full">
+              <Image
+                src={mediaUrl(current.path) ?? ''}
+                alt={current.alt ?? productName}
+                fill
+                sizes="100vw"
+                className="object-contain"
+              />
+            </div>
+          ) : null}
         </div>
       </dialog>
     </div>

@@ -1,16 +1,26 @@
 /**
- * Reserve imagery.
+ * Placeholder imagery.
  *
- * BOA has supplied no product photography (see `docs/CONTENT-CHECKLIST.md`), and
- * this repository does not invent it: no stock photograph, no generated bottle,
- * nothing that could be mistaken for a real BOA product.
+ * BOA has supplied no product photography (see `docs/CONTENT-CHECKLIST.md`).
+ * This script fills every image slot in the database with a **generated
+ * render** — drawn from primitives in `media/vessels.ts`, on the brand's own
+ * grounds, in the brand's own palette.
  *
- * What this script does instead is fill every image slot in the database with a
- * **declared reserve** — a real image file, drawn from the brand's own tokens,
- * that states in words what asset belongs there and at what size. The site then
- * renders a picture everywhere instead of an empty frame, the whole media
- * pipeline (storage → path → `mediaUrl` → `next/image`) is exercised for real,
- * and swapping in a genuine photograph is one upload per product in `/admin`.
+ * Nothing here is a photograph, stock imagery, or traced from a real product.
+ * And nothing here invents a BOA *fact*: a vessel silhouette states no
+ * ingredient, no certification and no origin, and the label prints only the
+ * product name the database already holds, its category, and the real
+ * `product_variants.format` when a variant actually declares one.
+ *
+ * Products get three views (front / detail / packaging) so the gallery rail,
+ * the pagination and the zoom all have something real to show. Categories,
+ * rituals and services get a titled cover plate; the wide editorial bands get
+ * an abstract composition.
+ *
+ * The renders are written with the same content-hashed naming as
+ * `modules/media/storage.ts`, so the whole pipeline
+ * (storage → path → `mediaUrl` → `next/image`) is exercised for real and
+ * swapping in a genuine photograph is one upload per product in `/admin`.
  *
  * It is idempotent: a slot that already holds a path is left alone unless
  * `--force` is passed, so it can never overwrite a real photograph.
@@ -26,6 +36,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import sharp from 'sharp';
+import { render as renderVessel, editorial, type VesselKind, type View } from './media/vessels.js';
 
 config({ path: '.env.local', quiet: true });
 config({ path: '.env', quiet: true });
@@ -110,17 +121,6 @@ function petals(cx: number, cy: number, scale: number, colour: string): string {
   return `<g fill="${colour}" transform="translate(${cx - size / 2} ${cy - size / 2}) scale(${scale})">${inner}</g>`;
 }
 
-/**
- * A product carries three reserves rather than one. A single image leaves the
- * gallery rail, the dot pagination and the zoom with nothing to show, so the
- * page a reviewer sees is not the page the code actually builds.
- */
-const PRODUCT_VIEWS = [
-  { label: 'Visuel principal', alt: 'visuel principal' },
-  { label: 'Détail · texture', alt: 'détail de texture' },
-  { label: 'Packaging', alt: 'packaging' },
-] as const;
-
 type Plate = {
   label: string;
   title: string;
@@ -179,11 +179,84 @@ function plate({ label, title, width, height, tone = 1 }: Plate): string {
  * so a reserve is indistinguishable from an upload to the rest of the system.
  */
 async function writePlate(prefix: string, spec: Plate): Promise<string> {
-  const png = await sharp(Buffer.from(plate(spec))).png({ compressionLevel: 9 }).toBuffer();
-  const hash = createHash('sha256').update(png).digest('hex').slice(0, 32);
-  const relative = `${prefix}/${hash}.png`;
+  /* WebP, not PNG. These plates are flat vector art at up to 2400×1600, where
+     PNG costs ~62% more bytes for a pixel-identical result. That matters twice:
+     `next/image` reads the source file on every cold optimise, and the reserves
+     are what a Hostinger container holds on disk. WebP is already in
+     `storage.ts`'s allowed upload types, so a reserve stays indistinguishable
+     from a real upload. */
+  const image = await sharp(Buffer.from(plate(spec)))
+    .webp({ quality: 82, effort: 6 })
+    .toBuffer();
+  const hash = createHash('sha256').update(image).digest('hex').slice(0, 32);
+  const relative = `${prefix}/${hash}.webp`;
   await mkdir(join(UPLOADS, prefix), { recursive: true });
-  await writeFile(join(UPLOADS, relative), png);
+  await writeFile(join(UPLOADS, relative), image);
+  return relative;
+}
+
+/**
+ * Which vessel each product is shown in.
+ *
+ * Keyed by slug so the choice is *stated*, not guessed from a name at runtime:
+ * a mask is a jar, a shampoo is a bottle, a treatment is a tube. The fallback
+ * reads the category, and only then the name. Nothing here invents a fact — a
+ * silhouette makes no claim about volume, ingredient or origin, and the label
+ * prints only the name the database already holds.
+ */
+const VESSEL_BY_SLUG: Record<string, VesselKind> = {
+  'boa-shampoo': 'bottle',
+  'boa-shampooing-nano-caviar': 'pump',
+  'boa-masque-cheveux': 'jar',
+  'boa-proteine-mesotherapie-collagene': 'tube',
+  'boa-pack-proteine-caviar': 'sachet',
+  'boa-gommage': 'jar',
+  'boa-savon-noir': 'bar',
+  'boa-body-splash': 'flacon',
+};
+
+function vesselFor(slug: string, category: string | null): VesselKind {
+  const known = VESSEL_BY_SLUG[slug];
+  if (known) return known;
+  const haystack = `${slug} ${category ?? ''}`.toLowerCase();
+  if (/masque|gommage|beurre|cr[eè]me/.test(haystack)) return 'jar';
+  if (/savon|solide/.test(haystack)) return 'bar';
+  /* `eau` needs a word boundary: without it "nouveau", "beauté" and "chevaux"
+     all match and a shampoo comes back as a perfume flacon. */
+  if (/parfum|splash|\beau\b/.test(haystack)) return 'flacon';
+  if (/pack|coffret|sachet/.test(haystack)) return 'sachet';
+  if (/prot[eé]ine|k[eé]ratine|soin|s[eé]rum/.test(haystack)) return 'tube';
+  return 'bottle';
+}
+
+/** The three catalogue views, in gallery order. */
+const VIEWS: { view: View; alt: string }[] = [
+  { view: 'front', alt: 'visuel principal' },
+  { view: 'detail', alt: 'détail de texture' },
+  { view: 'packaging', alt: 'packaging' },
+];
+
+/**
+ * Writes one generated product render. Same content-hashed naming and WebP
+ * encoding as `writePlate`, so the rest of the system cannot tell a render from
+ * an upload — which is the point: the pipeline under test is the real one.
+ */
+async function writeVessel(spec: {
+  kind: VesselKind;
+  view: View;
+  name: string;
+  kicker?: string;
+  volume?: string;
+  tone: number;
+  width: number;
+  height: number;
+}): Promise<string> {
+  const svg = renderVessel(spec);
+  const image = await sharp(Buffer.from(svg)).webp({ quality: 82, effort: 6 }).toBuffer();
+  const hash = createHash('sha256').update(image).digest('hex').slice(0, 32);
+  const relative = `products/${hash}.webp`;
+  await mkdir(join(UPLOADS, 'products'), { recursive: true });
+  await writeFile(join(UPLOADS, relative), image);
   return relative;
 }
 
@@ -212,11 +285,17 @@ async function main() {
   try {
     /* Products — 4:5, the locked catalogue crop (docs/BRAND.md §6). */
     const [products] = await pool.query<any[]>(
-      `SELECT p.id, COALESCE(t.name, p.slug) AS name,
+      `SELECT p.id, p.slug, COALESCE(t.name, p.slug) AS name,
+              ct.name AS category,
+              (SELECT v.format FROM product_variants v
+                WHERE v.product_id = p.id AND v.format IS NOT NULL AND v.format <> ''
+                ORDER BY v.position LIMIT 1) AS format,
               (SELECT COUNT(*) FROM product_media m WHERE m.product_id = p.id) AS media_count
          FROM products p
          LEFT JOIN product_translations t ON t.product_id = p.id AND t.locale = 'FR'
-        ORDER BY p.created_at`,
+         LEFT JOIN categories c ON c.id = p.category_id
+         LEFT JOIN category_translations ct ON ct.category_id = c.id AND ct.locale = 'FR'
+        ORDER BY p.position`,
     );
 
     console.log(`\nProduits (${products.length})`);
@@ -226,29 +305,40 @@ async function main() {
         continue;
       }
       if (FORCE) await pool.query('DELETE FROM product_media WHERE product_id = ?', [row.id]);
-      for (const [position, view] of PRODUCT_VIEWS.entries()) {
-        const path = await writePlate('products', {
-          label: view.label,
-          title: row.name,
+      const kind = vesselFor(String(row.slug), row.category ?? null);
+      for (const [position, view] of VIEWS.entries()) {
+        const path = await writeVessel({
+          kind,
+          view: view.view,
+          name: String(row.name).replace(/\s*—\s*à compléter\s*$/i, ''),
+          kicker: row.category ?? undefined,
+          /* Only the front view carries the volume, and only when a variant
+             actually declares one — the format is a real database value, never
+             a number invented to fill the label. */
+          volume: view.view === 'front' && row.format ? String(row.format) : undefined,
+          tone: position,
           width: 1600,
           height: 2000,
-          tone: position + 1,
         });
         await pool.query(
           `INSERT INTO product_media (id, product_id, kind, path, alt, width, height, position)
            VALUES (?, ?, 'IMAGE', ?, ?, 1600, 2000, ?)`,
-          [id(), row.id, path, `Réserve d'image — ${row.name} — ${view.alt}`, position],
+          [id(), row.id, path, `${row.name} — ${view.alt}`, position],
         );
       }
-      say('produit', row.name, 'drawn');
+      say('produit', `${row.name} (${kind})`, 'drawn');
     }
 
     /* Everything else carries a single cover column. Editorial crop, 3:2. */
-    const covers: { table: string; column: string; label: string }[] = [
-      { table: 'categories', column: 'image_path', label: 'Catégorie' },
-      { table: 'collections', column: 'cover_path', label: 'Collection' },
-      { table: 'rituals', column: 'cover_path', label: 'Rituel' },
-      { table: 'services', column: 'cover_path', label: 'Service' },
+    /* Each cover is drawn at the ratio the storefront actually displays it at.
+       A reserve exists to say "this is a reserve, replace it" — and `object-cover`
+       crops that line out of any plate whose ratio does not match its frame, so a
+       one-size 3:2 plate would read as a broken image on the two mastheads. */
+    const covers: { table: string; column: string; label: string; width: number; height: number }[] = [
+      { table: 'categories', column: 'image_path', label: 'Catégorie', width: 1800, height: 600 },
+      { table: 'collections', column: 'cover_path', label: 'Collection', width: 1800, height: 1200 },
+      { table: 'rituals', column: 'cover_path', label: 'Rituel', width: 1800, height: 720 },
+      { table: 'services', column: 'cover_path', label: 'Service', width: 1800, height: 1200 },
     ];
 
     for (const spec of covers) {
@@ -269,8 +359,8 @@ async function main() {
         const path = await writePlate(spec.table, {
           label: spec.label,
           title: row.name,
-          width: 1800,
-          height: 1200,
+          width: spec.width,
+          height: spec.height,
           tone: index + 1,
         });
         await pool.query(`UPDATE ${spec.table} SET ${spec.column} = ? WHERE id = ?`, [path, row.id]);
@@ -293,13 +383,15 @@ async function main() {
         say('bloc', `${row.page}/${row.kind}`, 'kept');
         continue;
       }
-      const path = await writePlate('content', {
-        label: `${row.page} · ${row.kind}`,
-        title: 'Visuel éditorial',
-        width: 2400,
-        height: 1600,
-        tone: 0,
-      });
+      /* An editorial composition, not a titled plate: these bands already carry
+         their own headline and body copy from the CMS, so a picture repeating
+         "Visuel éditorial · RÉSERVE" underneath it read as a broken asset. */
+      const svg = editorial(2400, 1600, blocks.indexOf(row));
+      const image = await sharp(Buffer.from(svg)).webp({ quality: 82, effort: 6 }).toBuffer();
+      const hash = createHash('sha256').update(image).digest('hex').slice(0, 32);
+      const path = `content/${hash}.webp`;
+      await mkdir(join(UPLOADS, 'content'), { recursive: true });
+      await writeFile(join(UPLOADS, path), image);
       await pool.query('UPDATE content_blocks SET media_path = ? WHERE id = ?', [path, row.id]);
       say('bloc', `${row.page}/${row.kind}`, 'drawn');
     }

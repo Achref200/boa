@@ -84,6 +84,26 @@ export default async function RitualPage({ params }: Props) {
           </div>
         </div>
 
+        {/* The ritual's own cover, when there is one. The steps below already
+            carry the product photography, so this band is the editorial image of
+            the ritual as a whole, and it is skipped rather than reserved when it
+            is absent — three step images in a row say enough on their own. 5:2
+            is the ratio `scripts/seed-media.ts` draws the ritual reserve at. */}
+        {ritual.coverPath ? (
+          <div className="mt-10">
+            <MediaFrame
+              path={ritual.coverPath}
+              alt=""
+              ratio="5 / 2"
+              sizes="(max-width: 1280px) 92vw, 1200px"
+              priority
+              pendingLabel={t('product.imagePending')}
+              expected="1800 × 720"
+              className="rounded-md"
+            />
+          </div>
+        ) : null}
+
         <div className="my-12">
           <SectionSeam />
         </div>

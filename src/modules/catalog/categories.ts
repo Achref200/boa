@@ -10,6 +10,7 @@ export type CategoryView = {
   slug: string;
   name: string;
   intro: string | null;
+  imagePath: string | null;
   metaTitle: string | null;
   metaDescription: string | null;
   parentSlug: string | null;
@@ -35,6 +36,7 @@ async function fetchCategory(locale: AppLocale, slug: string): Promise<CategoryV
     .select([
       'c.id',
       'c.slug',
+      'c.image_path as imagePath',
       sql<string>`COALESCE(t.name, f.name, c.slug)`.as('name'),
       sql<string | null>`COALESCE(t.intro, f.intro)`.as('intro'),
       sql<string | null>`COALESCE(t.meta_title, f.meta_title)`.as('metaTitle'),

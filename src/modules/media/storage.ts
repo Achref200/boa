@@ -112,5 +112,36 @@ export function readImageSize(buffer: Buffer): { width: number; height: number }
       offset += 2 + length;
     }
   }
+  /* WebP and AVIF are both accepted uploads (see ALLOWED) and both are what a
+     modern phone or export pipeline produces, so falling through to `null` here
+     stored width/height as NULL for a large share of real uploads — which is
+     exactly what `next/image` needs to reserve layout. Both are container
+     formats: RIFF for WebP, ISO-BMFF for AVIF. */
+  if (buffer.length > 30 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
+    const chunk = buffer.toString('ascii', 12, 16);
+    // VP8X: 24-bit canvas size minus one, little-endian.
+    if (chunk === 'VP8X') {
+      return {
+        width: (buffer.readUIntLE(24, 3) & 0xffffff) + 1,
+        height: (buffer.readUIntLE(27, 3) & 0xffffff) + 1,
+      };
+    }
+    // VP8L: 14 bits each, packed after the 0x2f signature byte.
+    if (chunk === 'VP8L' && buffer.length > 25) {
+      const bits = buffer.readUInt32LE(21);
+      return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+    }
+    // VP8 (lossy): dimensions follow the 3-byte start code in the keyframe header.
+    if (chunk === 'VP8 ' && buffer.length > 30) {
+      return { width: buffer.readUInt16LE(26) & 0x3fff, height: buffer.readUInt16LE(28) & 0x3fff };
+    }
+  }
+  if (buffer.length > 16 && buffer.toString('ascii', 4, 8) === 'ftyp') {
+    // `ispe` carries the intrinsic size; the first one is the primary item.
+    const marker = buffer.indexOf('ispe', 0, 'ascii');
+    if (marker > 0 && buffer.length >= marker + 16) {
+      return { width: buffer.readUInt32BE(marker + 8), height: buffer.readUInt32BE(marker + 12) };
+    }
+  }
   return null;
 }

@@ -26,6 +26,20 @@ type MediaFrameProps = {
  */
 const POSITION = /(?:^|\s)(?:static|fixed|absolute|relative|sticky)(?:\s|$)/;
 
+/**
+ * A 1×1 WebP of `--color-paper-sunken` (#f5efe2), inlined.
+ *
+ * `next/image` needs a `blurDataURL` to fade an image in rather than pop it,
+ * and the usual way to get one — encoding a thumbnail per asset at build time —
+ * cannot work here: media is uploaded at runtime and the path is all the
+ * database stores. Fading up from the media well's own ground is the honest
+ * version of that effect, it is 82 bytes, it never goes stale when a
+ * photograph is replaced, and it costs no request. Same colour as the frame
+ * behind it, so an image that fails to load leaves no seam.
+ */
+const BLUR =
+  'data:image/webp;base64,UklGRioAAABXRUJQVlA4IB4AAABwAQCdASoBAAEAAoBCJZQCdAFAAAD+99SUHw71sAA=';
+
 export function MediaFrame({
   path,
   alt,
@@ -61,6 +75,11 @@ export function MediaFrame({
           fill
           sizes={sizes}
           priority={priority}
+          /* A `priority` image is the LCP candidate and must not be deferred;
+             everything else is below the fold often enough to be worth it. */
+          loading={priority ? 'eager' : 'lazy'}
+          placeholder="blur"
+          blurDataURL={BLUR}
           className="object-cover"
         />
       ) : (
