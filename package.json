@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npm run build:standalone",
+    "build": "next build",
+    "build:hostinger": "next build && npm run build:standalone",
     "start": "node .next/standalone/server.js",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -18,7 +19,7 @@
     "e2e": "playwright test",
     "db:types": "tsx scripts/generate-db-types.ts",
     "db:reset": "tsx scripts/reset.ts",
-    "build:standalone": "cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/",
+    "build:standalone": "node -e \"const fs=require('fs');const path=require('path');const dest='.next/standalone';fs.mkdirSync(path.join(dest,'.next'), {recursive:true});fs.cpSync('public', path.join(dest, 'public'), {recursive:true, force:true});fs.cpSync('.next/static', path.join(dest, '.next', 'static'), {recursive:true, force:true});\"",
     "start:dev-server": "next start",
     "db:media": "tsx scripts/seed-media.ts",
     "brand:og": "tsx scripts/brand-og.ts",

@@ -6,7 +6,7 @@ import type { NextConfig } from 'next';
  * Node container and avoids shipping the full node_modules tree.
  */
 const config: NextConfig = {
-  output: 'standalone',
+  ...(process.env.VERCEL ? {} : { output: 'standalone' }),
   /* Without this, a second package-lock.json higher up the tree makes Next infer
      C:UsersTeam_2 as the workspace root and emit the server at
      .next/standalone/<nested path>/server.js — where build:standalone's copies
