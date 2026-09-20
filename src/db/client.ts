@@ -1,29 +1,8 @@
 import { Kysely, MysqlDialect } from 'kysely';
 import { createPool, type PoolOptions } from 'mysql2';
 import type { Database } from './types';
+import { mysqlConnectionOptions } from './dsn';
 import { env } from '@/lib/env';
-
-// TiDB Cloud Serverless (and other managed MySQL hosting) requires SSL.
-// Detect it from the host name and enable SSL with rejectUnauthorized so the
-// connection works without shipping a CA certificate through environment
-// variables. For a tighter setup, replace this with the CA path from the
-// provider's dashboard.
-//
-// Also strip any query parameters that mysql2 does not understand (e.g.
-// TiDB's `sslaccept=1`) so they don't trigger a warning / future error.
-function sslOptionsFor(uri: string): { ssl: PoolOptions['ssl']; cleanedUri: string } | undefined {
-  // TiDB Cloud gateway host names look like:
-  //   gateway01.<region>.prod.aws.tidbcloud.com
-  // Add more patterns here if another managed host is used.
-  const tidbHost = /gateway\d+\.[a-z0-9-]+\.prod\.aws\.tidbcloud\.com/.test(uri);
-  if (tidbHost) {
-    // Strip query parameters mysql2 doesn't understand.
-    const parts = uri.split('?');
-    const cleanBase = parts[0] ?? uri;
-    return { ssl: { rejectUnauthorized: true }, cleanedUri: cleanBase };
-  }
-  return undefined;
-}
 
 /**
  * Driver configuration is load-bearing:
@@ -35,12 +14,14 @@ function sslOptionsFor(uri: string): { ssl: PoolOptions['ssl']; cleanedUri: stri
  *   never turned into a float. See lib/money.ts.
  * - `supportBigNumbers` + `bigNumberStrings` — BIGINT ids stay exact.
  * - `typeCast` — TINYINT(1) becomes a real boolean instead of 0/1.
+ *
+ * The host/credentials come from `dsn.ts`, which parses them without a URL
+ * round-trip so a password containing `@ # ? /` arrives intact. That is the
+ * difference between `ER_ACCESS_DENIED` and a working deploy.
  */
 function buildPool() {
-  const sslResult = sslOptionsFor(env.DATABASE_URL);
-  const poolUri: string = sslResult ? sslResult.cleanedUri : env.DATABASE_URL;
   const opts: PoolOptions = {
-    uri: poolUri,
+    ...mysqlConnectionOptions(),
     connectionLimit: env.NODE_ENV === 'production' ? 10 : 5,
     waitForConnections: true,
     queueLimit: 0,
@@ -57,9 +38,6 @@ function buildPool() {
       return next();
     },
   };
-  if (sslResult) {
-    opts.ssl = sslResult.ssl;
-  }
   return createPool(opts);
 }
 
