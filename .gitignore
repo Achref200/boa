@@ -19,3 +19,6 @@ prisma/dev.db
 next-env.d.ts
 tsconfig.tsbuildinfo
 screenshots/
+
+.vercel
+.env*
