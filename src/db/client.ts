@@ -1,7 +1,27 @@
 import { Kysely, MysqlDialect } from 'kysely';
-import { createPool } from 'mysql2';
+import { createPool, type PoolOptions } from 'mysql2';
 import type { Database } from './types';
 import { env } from '@/lib/env';
+
+// TiDB Cloud Serverless (and other managed MySQL hosting) requires SSL.
+// Detect it from the host name and enable SSL with rejectUnauthorized so the
+// connection works without Shipping a CA certificate through environment
+// variables. For a tighter setup, replace this with the CA path from the
+// provider's dashboard.
+function sslOptionsFor(uri: string): PoolOptions['ssl'] {
+  // TiDB Cloud gateway host names look like:
+  //   gateway01.<region>.prod.aws.tidbcloud.com
+  // Add more patterns here if another managed host is used.
+  const tidbHost = /gateway\d+\.[a-z0-9-]+\.prod\.aws\.tidbcloud\.com/.test(uri);
+  if (tidbHost) {
+    // TiDB Cloud Serverless requires SSL. Without access to the CA certificate
+    // through environment variables, rejectUnauthorized is set to false so the
+    // encrypted connection succeeds. For a stricter setup, download the CA from
+    // the TiDB Cloud dashboard and add it as an env var (e.g. TIDB_CA_CERT).
+    return { rejectUnauthorized: false };
+  }
+  return undefined;
+}
 
 /**
  * Driver configuration is load-bearing:
@@ -15,7 +35,8 @@ import { env } from '@/lib/env';
  * - `typeCast` — TINYINT(1) becomes a real boolean instead of 0/1.
  */
 function buildPool() {
-  return createPool({
+  const ssl = sslOptionsFor(env.DATABASE_URL);
+  const opts: PoolOptions = {
     uri: env.DATABASE_URL,
     connectionLimit: env.NODE_ENV === 'production' ? 10 : 5,
     waitForConnections: true,
@@ -32,7 +53,11 @@ function buildPool() {
       }
       return next();
     },
-  });
+  };
+  if (ssl) {
+    opts.ssl = ssl;
+  }
+  return createPool(opts);
 }
 
 function buildDb() {
