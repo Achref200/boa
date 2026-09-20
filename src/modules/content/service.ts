@@ -2,6 +2,7 @@ import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { sql } from 'kysely';
 import { db } from '@/db/client';
+import { withBuildFallback } from '@/db/build-guard';
 import { dbLocale, DEFAULT_LOCALE, type AppLocale } from '@/i18n/config';
 import { parseJson } from '@/lib/json';
 
@@ -72,13 +73,13 @@ async function fetchBlocks(locale: AppLocale, page: string): Promise<ContentBloc
 }
 
 export const getActiveAnnouncement = (locale: AppLocale) =>
-  unstable_cache(() => fetchAnnouncement(locale), ['announcement', locale], {
+  unstable_cache(() => withBuildFallback(null, () => fetchAnnouncement(locale)), ['announcement', locale], {
     tags: [CONTENT_TAG],
     revalidate: 300,
   })();
 
 export const getPageBlocks = (locale: AppLocale, page = 'home') =>
-  unstable_cache(() => fetchBlocks(locale, page), ['blocks', locale, page], {
+  unstable_cache(() => withBuildFallback([], () => fetchBlocks(locale, page)), ['blocks', locale, page], {
     tags: [CONTENT_TAG],
     revalidate: 300,
   })();

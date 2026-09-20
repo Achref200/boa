@@ -2,6 +2,7 @@ import 'server-only';
 import { sql } from 'kysely';
 import { unstable_cache } from 'next/cache';
 import { db } from '@/db/client';
+import { withBuildFallback } from '@/db/build-guard';
 import { dbLocale, DEFAULT_LOCALE, type AppLocale } from '@/i18n/config';
 import { addMoney } from '@/lib/money';
 import type { MoneyString } from '@/lib/money';
@@ -124,10 +125,14 @@ async function fetchRituals(locale: AppLocale, limit: number): Promise<RitualVie
 }
 
 export const getRituals = (locale: AppLocale, limit = 6) =>
-  unstable_cache(() => fetchRituals(locale, limit), ['rituals', locale, String(limit)], {
-    tags: [CATALOG_TAG],
-    revalidate: 3600,
-  })();
+  unstable_cache(
+    () => withBuildFallback([], () => fetchRituals(locale, limit)),
+    ['rituals', locale, String(limit)],
+    {
+      tags: [CATALOG_TAG],
+      revalidate: 3600,
+    },
+  )();
 
 export async function getRitual(locale: AppLocale, slug: string): Promise<RitualView | null> {
   const all = await getRituals(locale, 50);

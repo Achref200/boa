@@ -1,5 +1,6 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
+import { withBuildFallback } from '@/db/build-guard';
 import type { AppLocale } from '@/i18n/config';
 import {
   fetchNavigation,
@@ -9,7 +10,7 @@ import {
   fetchPublishedProductSlugs,
   fetchRelatedProducts,
 } from './repository';
-import type { Paginated, ProductCard, ProductDetail, ProductQuery } from './types';
+import type { Paginated, ProductCard, ProductDetail, ProductQuery, Navigation } from './types';
 
 /**
  * Cache tags, so publishing from the admin invalidates exactly what changed
@@ -20,14 +21,16 @@ export const productTag = (slug: string) => `product:${slug}`;
 
 const HOUR = 3600;
 
+export const EMPTY_NAVIGATION: Navigation = { categories: [], needs: [] };
+
 export const getNavigation = (locale: AppLocale) =>
-  unstable_cache(() => fetchNavigation(locale), ['navigation', locale], {
+  unstable_cache(() => withBuildFallback(EMPTY_NAVIGATION, () => fetchNavigation(locale)), ['navigation', locale], {
     tags: [CATALOG_TAG],
     revalidate: HOUR,
   })();
 
 export const getNeeds = (locale: AppLocale) =>
-  unstable_cache(() => fetchNeeds(locale), ['needs', locale], {
+  unstable_cache(() => withBuildFallback([], () => fetchNeeds(locale)), ['needs', locale], {
     tags: [CATALOG_TAG],
     revalidate: HOUR,
   })();
@@ -46,21 +49,32 @@ export function getProducts(
     needSlugs: query.needSlugs ? [...query.needSlugs].sort() : undefined,
   };
   const key = JSON.stringify(normalised);
-  return unstable_cache(() => fetchProducts(locale, normalised), ['products', locale, key], {
-    tags: [CATALOG_TAG],
-    revalidate: 300,
-  })();
+  const fallback: Paginated<ProductCard> = {
+    items: [],
+    total: 0,
+    page: 1,
+    perPage: normalised.perPage ?? 24,
+    pageCount: 1,
+  };
+  return unstable_cache(
+    () => withBuildFallback(fallback, () => fetchProducts(locale, normalised)),
+    ['products', locale, key],
+    {
+      tags: [CATALOG_TAG],
+      revalidate: 300,
+    },
+  )();
 }
 
 export const getProduct = (locale: AppLocale, slug: string): Promise<ProductDetail | null> =>
-  unstable_cache(() => fetchProductBySlug(locale, slug), ['product', locale, slug], {
+  unstable_cache(() => withBuildFallback(null, () => fetchProductBySlug(locale, slug)), ['product', locale, slug], {
     tags: [CATALOG_TAG, productTag(slug)],
     revalidate: HOUR,
   })();
 
 export const getRelatedProducts = (locale: AppLocale, productId: string, limit?: number) =>
   unstable_cache(
-    () => fetchRelatedProducts(locale, productId, limit),
+    () => withBuildFallback([], () => fetchRelatedProducts(locale, productId, limit)),
     ['related', locale, productId, String(limit ?? 4)],
     { tags: [CATALOG_TAG], revalidate: HOUR },
   )();
@@ -69,7 +83,7 @@ export const getFeaturedProducts = (locale: AppLocale, limit = 3) =>
   getProducts(locale, { sort: 'relevance', perPage: limit, page: 1 });
 
 export const getProductSitemapEntries = () =>
-  unstable_cache(fetchPublishedProductSlugs, ['sitemap-products'], {
+  unstable_cache(() => withBuildFallback([], () => fetchPublishedProductSlugs()), ['sitemap-products'], {
     tags: [CATALOG_TAG],
     revalidate: HOUR,
   })();

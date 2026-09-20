@@ -2,6 +2,7 @@ import 'server-only';
 import { sql } from 'kysely';
 import { unstable_cache } from 'next/cache';
 import { db } from '@/db/client';
+import { withBuildFallback } from '@/db/build-guard';
 import { dbLocale, DEFAULT_LOCALE, type AppLocale } from '@/i18n/config';
 import type { MoneyString } from '@/lib/money';
 
@@ -66,15 +67,19 @@ async function fetchServices(locale: AppLocale, slug?: string): Promise<ServiceV
 }
 
 export const getServices = (locale: AppLocale) =>
-  unstable_cache(() => fetchServices(locale), ['services', locale], {
+  unstable_cache(() => withBuildFallback([], () => fetchServices(locale)), ['services', locale], {
     tags: [SERVICES_TAG],
     revalidate: 900,
   })();
 
 export const getService = async (locale: AppLocale, slug: string): Promise<ServiceView | null> => {
-  const rows = await unstable_cache(() => fetchServices(locale, slug), ['service', locale, slug], {
-    tags: [SERVICES_TAG],
-    revalidate: 900,
-  })();
+  const rows = await unstable_cache(
+    () => withBuildFallback([], () => fetchServices(locale, slug)),
+    ['service', locale, slug],
+    {
+      tags: [SERVICES_TAG],
+      revalidate: 900,
+    },
+  )();
   return rows[0] ?? null;
 };

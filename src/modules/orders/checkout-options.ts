@@ -1,6 +1,7 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
 import { db } from '@/db/client';
+import { withBuildFallback } from '@/db/build-guard';
 import { parseJson } from '@/lib/json';
 import { dbLocale, type AppLocale } from '@/i18n/config';
 import { enabledPaymentProviders } from '@/lib/env';
@@ -80,11 +81,17 @@ async function fetchOptions(locale: AppLocale): Promise<CheckoutOptions> {
   };
 }
 
+const EMPTY_OPTIONS: CheckoutOptions = { pickupPoints: [], zones: [], governorates: [], paymentKeys: [] };
+
 export async function getCheckoutOptions(locale: AppLocale): Promise<CheckoutOptions> {
-  const options = await unstable_cache(() => fetchOptions(locale), ['checkout-options', locale], {
-    tags: [CHECKOUT_TAG],
-    revalidate: 600,
-  })();
+  const options = await unstable_cache(
+    () => withBuildFallback(EMPTY_OPTIONS, () => fetchOptions(locale)),
+    ['checkout-options', locale],
+    {
+      tags: [CHECKOUT_TAG],
+      revalidate: 600,
+    },
+  )();
 
   return {
     ...options,
