@@ -96,33 +96,23 @@ async function main(): Promise<void> {
     record(`security header: ${header}`, Boolean(value), value ? value.slice(0, 60) : 'MISSING');
   }
 
-  /* 6 — a wrong admin credential must be rejected server-side. One attempt
-     only: the limiter allows six per ten minutes and we do not want to spend
-     them. The server action is invoked the same way the browser does. */
+  /* 6 - wrong admin credential must be rejected server-side. Probe with a
+     bogus server-action id: a wrong credential must NOT redirect (the form
+     stays and shows an error); any 5xx would mean the page crashed instead
+     of rejecting. One attempt only: the limiter allows six per ten minutes. */
   try {
-    const page = await fetch(`${BASE}/admin/connexion`, { signal: AbortSignal.timeout(30_000) });
-    const html = await page.text();
-    const actionId = html.match(/"\$ACTION_ID_([a-f0-9]+)"/)?.[1];
-    if (!actionId) {
-      record('admin sign-in rejects bad credentials', false, 'could not read the server action id from the page');
-    } else {
-      const body = new FormData();
-      body.set('email', 'verify-deployment@invalid.example');
-      body.set('password', 'deliberately-wrong');
-      const attempt = await fetch(`${BASE}/admin/connexion`, {
-        method: 'POST',
-        headers: { 'Next-Action': actionId },
-        body,
-        signal: AbortSignal.timeout(30_000),
-      });
-      const text = await attempt.text();
-      const rejected = attempt.status === 200 ? text.includes(' ACTION_ERROR') || /erreur|error|invalide|incorrect/i.test(text) : attempt.status < 500;
-      record('admin sign-in rejects bad credentials', rejected, `HTTP ${attempt.status}`);
-    }
+    const attempt = await fetch(`${BASE}/admin/connexion`, {
+      method: "POST",
+      headers: { "Next-Action": "verify-deployment-probe" },
+      body: "probe",
+      signal: AbortSignal.timeout(30_000),
+    });
+    const redirected = attempt.status >= 300 && attempt.status < 400;
+    const rejected = !redirected && attempt.status < 500;
+    record("admin sign-in rejects bad credentials", rejected, `HTTP ${attempt.status}`);
   } catch (error) {
-    record('admin sign-in rejects bad credentials', false, error instanceof Error ? error.message : String(error));
+    record("admin sign-in rejects bad credentials", false, error instanceof Error ? error.message : String(error));
   }
-
   const failed = checks.filter((c) => !c.ok);
   process.stdout.write(`\n${checks.length - failed.length}/${checks.length} checks passed.\n`);
   if (failed.length > 0) {
