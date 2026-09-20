@@ -1,0 +1,5 @@
+fix(db): enable SSL for TiDB Cloud Serverless connections
+
+TiDB Cloud Serverless requires SSL connections. Add sslOptionsFor() helper that detects TiDB Cloud gateway hosts and enables SSL with rejectUnauthorized: false.
+
+Refs: deployment dpl_7bVrZtgnCZBjorRzH8ZaMifiLZwb failed with insecure transport error
