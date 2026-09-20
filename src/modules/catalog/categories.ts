@@ -2,7 +2,7 @@ import 'server-only';
 import { sql } from 'kysely';
 import { unstable_cache } from 'next/cache';
 import { db } from '@/db/client';
-import { withBuildFallback } from '@/db/build-guard';
+import { withDbFallback } from '@/db/build-guard';
 import { dbLocale, DEFAULT_LOCALE, type AppLocale } from '@/i18n/config';
 import { CATALOG_TAG } from './service';
 
@@ -84,7 +84,7 @@ export async function categoryBranchSlugs(locale: AppLocale, slug: string): Prom
 export const getPublishedCategorySlugs = () =>
   unstable_cache(
     () =>
-      withBuildFallback([], () =>
+      withDbFallback([], () =>
         db
           .selectFrom('categories')
           .select(['slug', 'updated_at as updatedAt'])

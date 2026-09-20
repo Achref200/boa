@@ -1,6 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { db } from '@/db/client';
+import { withDbFallback } from '@/db/build-guard';
 import { newId, newToken } from '@/lib/ids';
 import { priceLines, type PricedCart, MAX_QUANTITY_PER_LINE } from '@/modules/orders/pricing';
 import { dbLocale, type AppLocale } from '@/i18n/config';
@@ -86,14 +87,17 @@ export async function getCart(locale: AppLocale = 'fr'): Promise<CartView> {
 
 /** Cheap read for the header badge: no pricing, no joins beyond the count. */
 export async function getCartSummary(): Promise<{ itemCount: number }> {
-  const cartId = await findCartIdByToken(await readCartToken());
-  if (!cartId) return { itemCount: 0 };
-  const row = await db
-    .selectFrom('cart_items')
-    .select((eb) => eb.fn.sum<number>('quantity').as('total'))
-    .where('cart_id', '=', cartId)
-    .executeTakeFirst();
-  return { itemCount: Number(row?.total ?? 0) };
+  // V0: the badge is cosmetic — a dead database must not 500 the whole layout.
+  return withDbFallback({ itemCount: 0 }, async () => {
+    const cartId = await findCartIdByToken(await readCartToken());
+    if (!cartId) return { itemCount: 0 };
+    const row = await db
+      .selectFrom('cart_items')
+      .select((eb) => eb.fn.sum<number>('quantity').as('total'))
+      .where('cart_id', '=', cartId)
+      .executeTakeFirst();
+    return { itemCount: Number(row?.total ?? 0) };
+  });
 }
 
 export async function addItem(variantId: string, quantity = 1): Promise<CartView> {

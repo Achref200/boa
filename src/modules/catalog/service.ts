@@ -1,6 +1,6 @@
 import 'server-only';
 import { unstable_cache } from 'next/cache';
-import { withBuildFallback } from '@/db/build-guard';
+import { withDbFallback } from '@/db/build-guard';
 import type { AppLocale } from '@/i18n/config';
 import {
   fetchNavigation,
@@ -24,13 +24,13 @@ const HOUR = 3600;
 export const EMPTY_NAVIGATION: Navigation = { categories: [], needs: [] };
 
 export const getNavigation = (locale: AppLocale) =>
-  unstable_cache(() => withBuildFallback(EMPTY_NAVIGATION, () => fetchNavigation(locale)), ['navigation', locale], {
+  unstable_cache(() => withDbFallback(EMPTY_NAVIGATION, () => fetchNavigation(locale)), ['navigation', locale], {
     tags: [CATALOG_TAG],
     revalidate: HOUR,
   })();
 
 export const getNeeds = (locale: AppLocale) =>
-  unstable_cache(() => withBuildFallback([], () => fetchNeeds(locale)), ['needs', locale], {
+  unstable_cache(() => withDbFallback([], () => fetchNeeds(locale)), ['needs', locale], {
     tags: [CATALOG_TAG],
     revalidate: HOUR,
   })();
@@ -57,7 +57,7 @@ export function getProducts(
     pageCount: 1,
   };
   return unstable_cache(
-    () => withBuildFallback(fallback, () => fetchProducts(locale, normalised)),
+    () => withDbFallback(fallback, () => fetchProducts(locale, normalised)),
     ['products', locale, key],
     {
       tags: [CATALOG_TAG],
@@ -67,14 +67,14 @@ export function getProducts(
 }
 
 export const getProduct = (locale: AppLocale, slug: string): Promise<ProductDetail | null> =>
-  unstable_cache(() => withBuildFallback(null, () => fetchProductBySlug(locale, slug)), ['product', locale, slug], {
+  unstable_cache(() => withDbFallback(null, () => fetchProductBySlug(locale, slug)), ['product', locale, slug], {
     tags: [CATALOG_TAG, productTag(slug)],
     revalidate: HOUR,
   })();
 
 export const getRelatedProducts = (locale: AppLocale, productId: string, limit?: number) =>
   unstable_cache(
-    () => withBuildFallback([], () => fetchRelatedProducts(locale, productId, limit)),
+    () => withDbFallback([], () => fetchRelatedProducts(locale, productId, limit)),
     ['related', locale, productId, String(limit ?? 4)],
     { tags: [CATALOG_TAG], revalidate: HOUR },
   )();
@@ -83,7 +83,7 @@ export const getFeaturedProducts = (locale: AppLocale, limit = 3) =>
   getProducts(locale, { sort: 'relevance', perPage: limit, page: 1 });
 
 export const getProductSitemapEntries = () =>
-  unstable_cache(() => withBuildFallback([], () => fetchPublishedProductSlugs()), ['sitemap-products'], {
+  unstable_cache(() => withDbFallback([], () => fetchPublishedProductSlugs()), ['sitemap-products'], {
     tags: [CATALOG_TAG],
     revalidate: HOUR,
   })();
